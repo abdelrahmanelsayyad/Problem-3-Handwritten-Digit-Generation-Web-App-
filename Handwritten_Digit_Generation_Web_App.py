@@ -11,7 +11,8 @@ import base64
 st.set_page_config(
     page_title="Handwritten Digit Generator",
     page_icon="🔢",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
 # Define the Generator class (same as in training script)
@@ -54,12 +55,24 @@ class Generator(nn.Module):
 @st.cache_resource
 def load_model():
     """Load the trained generator model"""
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Force CPU usage for Streamlit Cloud compatibility
+    device = torch.device('cpu')
     
     try:
-        # Load model checkpoint from root directory
-        checkpoint = torch.load('conditional_gan_generator.pth', map_location=device)
-        config = checkpoint['model_config']
+        # Load model checkpoint from root directory with CPU mapping
+        checkpoint = torch.load('conditional_gan_generator.pth', map_location='cpu')
+        
+        # Handle potential key variations in saved model
+        if 'model_config' in checkpoint:
+            config = checkpoint['model_config']
+        else:
+            # Fallback config if not saved properly
+            config = {
+                'noise_dim': 100,
+                'num_classes': 10,
+                'img_size': 28
+            }
+            st.warning("Using default config - model may not work perfectly")
         
         # Initialize generator
         generator = Generator(
@@ -69,16 +82,25 @@ def load_model():
         ).to(device)
         
         # Load trained weights
-        generator.load_state_dict(checkpoint['generator_state_dict'])
+        if 'generator_state_dict' in checkpoint:
+            generator.load_state_dict(checkpoint['generator_state_dict'])
+        else:
+            generator.load_state_dict(checkpoint)  # Fallback if saved differently
+            
         generator.eval()
         
         return generator, device, config
+        
     except FileNotFoundError:
-        st.error("⚠️ Model file 'conditional_gan_generator.pth' not found! Please make sure the trained model is uploaded to the repository.")
-        st.info("Expected file: conditional_gan_generator.pth in the root directory")
+        st.error("⚠️ Model file 'conditional_gan_generator.pth' not found!")
+        st.info("Please make sure the trained model file is uploaded to your repository root directory.")
+        st.stop()
+    except RuntimeError as e:
+        st.error(f"❌ Model loading error: {str(e)}")
+        st.info("This might be a model compatibility issue. Make sure the model was saved correctly.")
         st.stop()
     except Exception as e:
-        st.error(f"❌ Error loading model: {str(e)}")
+        st.error(f"❌ Unexpected error: {str(e)}")
         st.info("Please check if the model file is correctly formatted and not corrupted.")
         st.stop()
 
@@ -184,7 +206,7 @@ def main():
                 
                 st.markdown("---")
                 st.subheader(f"✨ Generated Images of Digit {selected_digit}")
-                st.image(image_grid, use_column_width=True)
+                st.image(image_grid, use_container_width=True)
                 
                 # Display individual images
                 st.markdown("### 🖼️ Individual Images:")
@@ -194,7 +216,7 @@ def main():
                         # Convert single image to PIL format
                         img_array = (generated_images[i].squeeze() * 255).astype(np.uint8)
                         pil_img = Image.fromarray(img_array, mode='L')
-                        st.image(pil_img, caption=f"Sample {i+1}", use_column_width=True)
+                        st.image(pil_img, caption=f"Sample {i+1}", use_container_width=True)
                 
                 st.success(f"✅ Successfully generated 5 unique images of digit {selected_digit}!")
                 
