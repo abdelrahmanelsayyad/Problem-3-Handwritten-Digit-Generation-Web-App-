@@ -1,7 +1,6 @@
 streamlit
-torch==1.13.1+cpu --find-links https://download.pytorch.org/whl/torch_stable.html
-torchvision==0.14.1+cpu --find-links https://download.pytorch.org/whl/torch_stable.html
-numpy<1.25.0
+torch --index-url https://download.pytorch.org/whl/cpu
+torchvision --index-url https://download.pytorch.org/whl/cpu
+numpy
 matplotlib
 Pillow
-tqdm
