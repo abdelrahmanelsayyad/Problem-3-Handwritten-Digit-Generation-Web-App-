@@ -57,8 +57,8 @@ def load_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     try:
-        # Load model checkpoint
-        checkpoint = torch.load('models/conditional_gan_generator.pth', map_location=device)
+        # Load model checkpoint from root directory
+        checkpoint = torch.load('conditional_gan_generator.pth', map_location=device)
         config = checkpoint['model_config']
         
         # Initialize generator
@@ -74,10 +74,12 @@ def load_model():
         
         return generator, device, config
     except FileNotFoundError:
-        st.error("Model file not found! Please make sure you have trained the model first.")
+        st.error("⚠️ Model file 'conditional_gan_generator.pth' not found! Please make sure the trained model is uploaded to the repository.")
+        st.info("Expected file: conditional_gan_generator.pth in the root directory")
         st.stop()
     except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
+        st.error(f"❌ Error loading model: {str(e)}")
+        st.info("Please check if the model file is correctly formatted and not corrupted.")
         st.stop()
 
 def generate_digit_images(generator, device, config, digit, num_images=5):
@@ -126,10 +128,17 @@ def main():
     st.markdown("---")
     
     st.markdown("""
-    **Generate synthetic MNIST-like images using your trained model.**
+    **Generate synthetic MNIST-like images using a trained Conditional GAN model.**
     
     This app uses a Conditional Generative Adversarial Network (cGAN) trained from scratch 
-    to generate handwritten digit images based on the previous user's selections.
+    to generate handwritten digit images. Simply select a digit and watch the AI create 
+    5 unique variations of that digit!
+    
+    🎯 **Features:**
+    - Generate any digit from 0-9
+    - Creates 5 unique variations per generation
+    - Trained on MNIST dataset from scratch
+    - Real-time generation using PyTorch
     """)
     
     # Load model
@@ -158,8 +167,12 @@ def main():
         st.write("Click the button below to generate 5 new images")
     
     # Generate button
-    if st.button("🎲 Generate Images", type="primary", use_container_width=True):
-        with st.spinner(f"Generating 5 images of digit {selected_digit}..."):
+    generate_col1, generate_col2, generate_col3 = st.columns([1, 2, 1])
+    with generate_col2:
+        generate_button = st.button("🎲 Generate Images", type="primary", use_container_width=True)
+    
+    if generate_button:
+        with st.spinner(f"🎨 Generating 5 images of digit {selected_digit}..."):
             try:
                 # Generate images
                 generated_images = generate_digit_images(
@@ -170,51 +183,75 @@ def main():
                 image_grid = create_image_grid(generated_images, selected_digit)
                 
                 st.markdown("---")
-                st.subheader(f"Generated Images of Digit {selected_digit}")
+                st.subheader(f"✨ Generated Images of Digit {selected_digit}")
                 st.image(image_grid, use_column_width=True)
                 
                 # Display individual images
-                st.markdown("### Individual Images:")
+                st.markdown("### 🖼️ Individual Images:")
                 cols = st.columns(5)
                 for i in range(5):
                     with cols[i]:
                         # Convert single image to PIL format
                         img_array = (generated_images[i].squeeze() * 255).astype(np.uint8)
                         pil_img = Image.fromarray(img_array, mode='L')
-                        st.image(pil_img, caption=f"Image {i+1}", use_column_width=True)
+                        st.image(pil_img, caption=f"Sample {i+1}", use_column_width=True)
                 
-                st.success("✅ Images generated successfully!")
+                st.success(f"✅ Successfully generated 5 unique images of digit {selected_digit}!")
+                
+                # Add regeneration hint
+                st.info("💡 Click 'Generate Images' again to create completely new variations!")
                 
             except Exception as e:
-                st.error(f"Error generating images: {str(e)}")
+                st.error(f"❌ Error generating images: {str(e)}")
+                st.info("Please try again or contact support if the problem persists.")
     
     # Additional information
     st.markdown("---")
-    with st.expander("ℹ️ About this model"):
-        st.markdown(f"""
-        **Model Information:**
-        - **Architecture**: Conditional Generative Adversarial Network (cGAN)
-        - **Training Dataset**: MNIST (28x28 grayscale images)
-        - **Framework**: PyTorch
-        - **Input Noise Dimension**: {config.get('noise_dim', 'N/A')}
-        - **Number of Classes**: {config.get('num_classes', 'N/A')}
-        - **Image Size**: {config.get('img_size', 'N/A')}x{config.get('img_size', 'N/A')} pixels
-        
-        **How it works:**
-        1. The generator takes random noise and a digit label as input
-        2. It learns to generate realistic handwritten digits during training
-        3. For each generation, we sample new random noise to create variety
-        4. The model outputs 5 different variations of the selected digit
-        """)
     
-    with st.expander("🚀 Try different digits"):
-        st.markdown("""
-        **Experiment with different digits:**
-        - Each digit has its own learned characteristics
-        - Generated images will have natural variations
-        - Try generating the same digit multiple times to see different styles
-        - Compare how well different digits are generated
-        """)
+    col_info1, col_info2 = st.columns(2)
+    
+    with col_info1:
+        with st.expander("ℹ️ About this Model"):
+            st.markdown(f"""
+            **Model Architecture:** Conditional GAN
+            - **Generator**: Fully connected neural network
+            - **Input**: Random noise + digit label
+            - **Output**: 28×28 grayscale images
+            - **Training**: MNIST dataset (60,000 images)
+            - **Framework**: PyTorch
+            
+            **Specifications:**
+            - Noise Dimension: {config.get('noise_dim', 'N/A')}
+            - Classes: {config.get('num_classes', 'N/A')} digits (0-9)
+            - Image Size: {config.get('img_size', 'N/A')}×{config.get('img_size', 'N/A')} pixels
+            """)
+    
+    with col_info2:
+        with st.expander("🚀 How to Use"):
+            st.markdown("""
+            **Quick Start:**
+            1. Select any digit (0-9) from the dropdown
+            2. Click "Generate Images" button
+            3. View 5 unique AI-generated variations
+            4. Generate again for new samples!
+            
+            **Tips:**
+            - Each generation creates completely new images
+            - Images are generated in real-time
+            - Try different digits to see model performance
+            - All images are 28×28 pixels (MNIST standard)
+            """)
+    
+    # Footer
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style='text-align: center; color: #666; padding: 10px;'>
+            🤖 Powered by Conditional GAN | Built with Streamlit & PyTorch
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
